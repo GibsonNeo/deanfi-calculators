@@ -1,0 +1,679 @@
+# Changelog and Implementation Log - @deanfinancials/calculators
+
+**Package:** @deanfinancials/calculators  
+**Repository:** https://github.com/GibsonNeo/deanfi-calculators  
+**npm Registry:** https://www.npmjs.com/package/@deanfinancials/calculators
+
+This document tracks all changes, implementations, and design decisions for the calculator package.
+
+---
+
+## Table of Contents
+
+- [Version 1.0.1 - ESM Import Path Fix](#version-101---2025-11-21)
+- [Version 1.0.0 - Initial Publication](#version-100---2025-11-21)
+- [Pre-Publication Development](#pre-publication-development)
+
+---
+
+## Version 1.0.1 - 2025-11-21
+
+**Type:** Bug Fix (PATCH)  
+**Published:** November 21, 2025  
+**npm:** https://www.npmjs.com/package/@deanfinancials/calculators/v/1.0.1
+
+### Problem Statement
+
+After publishing v1.0.0, consumers of the package encountered a critical error:
+
+```
+Cannot find module '/path/to/node_modules/@deanfinancials/calculators/dist/retirement/retirement' 
+imported from /path/to/node_modules/@deanfinancials/calculators/dist/index.js
+```
+
+**Root Cause:** TypeScript compilation was not adding `.js` extensions to relative import paths in the compiled output. Node.js ESM loader requires explicit file extensions for relative imports.
+
+### Technical Analysis
+
+**Problem Details:**
+
+1. TypeScript source file (`src/index.ts`) had imports without extensions:
+   ```typescript
+   export * from './retirement/retirement';  // Missing .js
+   ```
+
+2. TypeScript compiler configuration had `moduleResolution: "bundler"`:
+   ```jsonc
+   {
+     "compilerOptions": {
+       "moduleResolution": "bundler"  // Wrong for npm packages
+     }
+   }
+   ```
+
+3. Compiled output (`dist/index.js`) retained the extension-less imports:
+   ```javascript
+   export * from './retirement/retirement';  // Missing .js
+   ```
+
+4. Node.js ESM loader failed to resolve the module because:
+   - ESM requires explicit file extensions for relative imports
+   - Without `.js`, Node.js doesn't know if it should look for `.js`, `.json`, `.node`, etc.
+
+**Why This Happened:**
+
+- `moduleResolution: "bundler"` is designed for bundlers (Webpack, Vite, etc.) that handle extension resolution automatically
+- npm packages need `moduleResolution: "node"` which follows Node.js resolution rules
+- Even with correct `moduleResolution`, TypeScript won't automatically add `.js` to source file imports
+
+### Solution Implemented
+
+**1. Updated All Import Statements** (`src/index.ts`)
+
+```typescript
+// Before (v1.0.0)
+export * from './retirement/retirement';
+export * from './retirement/withdrawalStrategy';
+export * from './debt/debtPayoff';
+// etc.
+
+// After (v1.0.1)
+export * from './retirement/retirement.js';
+export * from './retirement/withdrawalStrategy.js';
+export * from './debt/debtPayoff.js';
+// etc.
+```
+
+**Why `.js` not `.ts`:** TypeScript requires the extension to match the **compiled output**, not the source file. Since TypeScript compiles `.ts` to `.js`, we use `.js` in the import statement.
+
+**2. Updated TypeScript Configuration** (`tsconfig.json`)
+
+```jsonc
+{
+  "compilerOptions": {
+    "moduleResolution": "node"  // Changed from "bundler"
+  }
+}
+```
+
+This ensures proper Node.js-style module resolution.
+
+**3. Verified Build Output**
+
+After rebuilding, `dist/index.js` now contains:
+
+```javascript
+export * from './retirement/retirement.js';
+export * from './retirement/withdrawalStrategy.js';
+export * from './debt/debtPayoff.js';
+// etc.
+```
+
+### Files Modified
+
+- `src/index.ts` - Added `.js` extensions to all 9 export statements
+- `tsconfig.json` - Changed `moduleResolution` from `"bundler"` to `"node"`
+- `package.json` - Bumped version from `1.0.0` to `1.0.1`
+
+### Testing Performed
+
+1. **Build Verification:**
+   ```bash
+   npm run build
+   cat dist/index.js  # Verified .js extensions present
+   ```
+
+2. **Local Link Test:**
+   ```bash
+   # In calculator package
+   npm link
+   
+   # In website package
+   npm link @deanfinancials/calculators
+   npm run dev
+   # Verified calculator page loads without errors
+   ```
+
+3. **npm Publication:**
+   ```bash
+   npm publish --access public
+   # Published successfully as v1.0.1
+   ```
+
+4. **Consumer Installation Test:**
+   ```bash
+   # In website package
+   npm unlink @deanfinancials/calculators
+   npm install @deanfinancials/calculators@latest
+   npm run dev
+   # Verified calculator works with published version
+   ```
+
+5. **Consumer Package Update (CRITICAL STEP):**
+   ```bash
+   # In deanfi-website repository
+   # Updated package.json: "@deanfinancials/calculators": "^1.0.1"
+   npm install  # Updated package-lock.json
+   
+   # Verified changes
+   git diff package.json package-lock.json
+   
+   # Committed updates
+   git add package.json package-lock.json
+   git commit -m "chore: update @deanfinancials/calculators to v1.0.1"
+   ```
+
+**Important Note:** This step is CRITICAL and must be performed after EVERY package publish. Without updating the consumer's package.json and package-lock.json, production deployments will continue using the old version, even though the new version exists on npm.
+
+### Migration Guide
+
+For consumers upgrading from v1.0.0 to v1.0.1:
+
+**No code changes required.** This is a transparent bug fix.
+
+Simply update the package:
+
+```bash
+npm update @deanfinancials/calculators
+```
+
+Or install the latest version:
+
+```bash
+npm install @deanfinancials/calculators@latest
+```
+
+### Lessons Learned
+
+1. **Always verify ESM output** - Check `dist/` files have correct `.js` extensions
+2. **Test published packages** - Don't rely solely on `npm link` for testing
+3. **Use `moduleResolution: "node"` for npm packages** - Not `"bundler"`
+4. **TypeScript requires runtime extensions** - Use `.js` in source for ESM output
+5. **Dry-run doesn't catch module resolution issues** - Need actual installation test
+
+### Documentation Updates
+
+- Updated `DEVELOPER_REQUIREMENTS.md` with ESM import path requirements
+- Added troubleshooting section for "Cannot find module" errors
+- Documented correct TypeScript configuration for npm packages
+
+---
+
+## Version 1.0.0 - 2025-11-21
+
+**Type:** Initial Public Release (MAJOR)  
+**Published:** November 21, 2025  
+**npm:** https://www.npmjs.com/package/@deanfinancials/calculators/v/1.0.0  
+**Status:** Deprecated (use v1.0.1 - contains ESM bug fix)
+
+### Overview
+
+First public release of the `@deanfinancials/calculators` package to npm registry. This package contains all financial calculation logic used on DeanFinancials.com, published for transparency and public verification.
+
+### Package Details
+
+**Package Information:**
+- **Name:** @deanfinancials/calculators
+- **Scope:** @deanfinancials (organization)
+- **Version:** 1.0.0
+- **License:** MIT
+- **Type:** ESM (module)
+- **Size:** 24.8 kB (tarball), 104.4 kB (unpacked)
+- **Files:** 43 files
+
+**npm Configuration:**
+
+```json
+{
+  "name": "@deanfinancials/calculators",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ]
+}
+```
+
+### Included Calculators
+
+**Debt Calculators:**
+1. `calculateDebtPayoff()` - Avalanche and snowball debt payoff strategies
+2. `calculateCreditCardPayoff()` - Credit card payoff calculator
+3. `calculateDTI()` - Debt-to-income ratio calculator
+4. `calculateLoanAmortization()` - Loan amortization schedules
+5. `calculateMortgage()` - Mortgage payment and amortization
+
+**Retirement Calculators:**
+1. `calculateRetirementBalance()` - Retirement savings projections
+2. `calculateWithdrawalStrategy()` - Fixed vs dynamic withdrawal strategies
+3. `calculateClaimingStrategy()` - Social Security claiming age analysis
+4. `calculateFourZeroOneKVsIRA()` - 401(k) vs IRA comparison
+
+### TypeScript Configuration
+
+**Initial Configuration (v1.0.0):**
+
+```jsonc
+// tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ES2020",
+    "lib": ["ES2020"],
+    "declaration": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "bundler",  // NOTE: Changed to "node" in v1.0.1
+    "resolveJsonModule": true,
+    "declarationMap": true,
+    "sourceMap": true
+  }
+}
+```
+
+### npm Organization Setup
+
+**Organization Creation:**
+- **Organization Name:** deanfinancials
+- **URL:** https://www.npmjs.com/org/deanfinancials
+- **Created:** November 21, 2025
+- **Purpose:** Host all DeanFinancials public packages
+
+**Initial Member:**
+- Username: gibsonneo
+- Role: Owner
+
+### Publication Process
+
+**Authentication Method:**
+
+Due to WSL environment limitations with browser-based npm login, used legacy authentication:
+
+```bash
+npm adduser --auth-type=legacy
+```
+
+Provided:
+- Username: gibsonneo
+- Password: (secure)
+- Email: (public)
+- OTP: 065081 (from email)
+
+**Publication Command:**
+
+```bash
+npm publish --access public
+```
+
+**Result:** Successfully published to https://registry.npmjs.org/
+
+### Build Output
+
+**Generated Files (43 total):**
+
+```
+dist/
+├── index.js (912 bytes)
+├── index.d.ts (1.2 kB)
+├── index.d.ts.map
+├── index.js.map
+├── debt/
+│   ├── creditCardPayoff.js (3.3 kB)
+│   ├── creditCardPayoff.d.ts (1.7 kB)
+│   ├── debtPayoff.js (3.7 kB)
+│   ├── debtPayoff.d.ts (1.8 kB)
+│   ├── debtToIncomeRatio.js (2.3 kB)
+│   ├── debtToIncomeRatio.d.ts (1.2 kB)
+│   ├── loanCalculator.js (3.6 kB)
+│   ├── loanCalculator.d.ts (2.0 kB)
+│   ├── mortgageCalculator.js (7.2 kB)
+│   ├── mortgageCalculator.d.ts (2.4 kB)
+│   └── (source maps for each)
+└── retirement/
+    ├── fourZeroOneKVsIRA.js (3.5 kB)
+    ├── fourZeroOneKVsIRA.d.ts (1.3 kB)
+    ├── retirement.js (3.5 kB)
+    ├── retirement.d.ts (2.1 kB)
+    ├── socialSecurity.js (6.2 kB)
+    ├── socialSecurity.d.ts (2.9 kB)
+    ├── withdrawalStrategy.js (3.9 kB)
+    ├── withdrawalStrategy.d.ts (1.6 kB)
+    └── (source maps for each)
+```
+
+### Known Issue (Fixed in v1.0.1)
+
+**Issue:** Module resolution errors when importing package
+
+**Symptom:**
+```
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module
+```
+
+**Resolution:** Upgrade to v1.0.1
+
+### Initial Consumers
+
+**Primary Consumer:** deanfi-website (DeanFinancials.com)
+
+**Installation in deanfi-website:**
+
+```bash
+npm install @deanfinancials/calculators
+```
+
+**Usage Example:**
+
+```typescript
+// src/components/calculators/DebtPayoffCalculator.tsx
+import { calculateDebtPayoff } from '@deanfinancials/calculators';
+
+const results = calculateDebtPayoff({
+  debts: [
+    { balance: 5000, interestRate: 18, minimumPayment: 150 },
+    { balance: 3000, interestRate: 12, minimumPayment: 90 }
+  ],
+  extraMonthlyPayment: 200,
+  strategy: 'avalanche'
+});
+```
+
+---
+
+## Pre-Publication Development
+
+### Project Initialization
+
+**Date:** November 2025  
+**Repository Created:** https://github.com/GibsonNeo/deanfi-calculators
+
+### Initial Structure Setup
+
+**Created Files:**
+- `package.json` - Package metadata and scripts
+- `tsconfig.json` - TypeScript configuration
+- `src/index.ts` - Main export file
+- `.gitignore` - Git ignore rules
+- `.npmignore` - npm publish ignore rules
+- `LICENSE` - MIT license
+- `README.md` - Package documentation
+
+**Initial package.json:**
+
+```json
+{
+  "name": "@deanfinancials/calculators",
+  "version": "1.0.0",
+  "description": "Transparent financial calculator library used by DeanFinancials.com",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"No tests yet\" && exit 0",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "finance",
+    "calculator",
+    "debt",
+    "retirement",
+    "mortgage",
+    "transparent"
+  ],
+  "author": "Dean Financials",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GibsonNeo/deanfi-calculators.git"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
+```
+
+### Calculator Implementations
+
+**Debt Calculators Implemented:**
+
+1. **debtPayoff.ts** - Debt avalanche and snowball strategies
+   - Types: `Debt`, `PayoffResult`, `DebtSnapshot`, `MonthlySnapshot`
+   - Functions: `calculateDebtPayoff()`, `comparePayoffStrategies()`
+   - Algorithm: Prioritizes by interest rate (avalanche) or balance (snowball)
+   - Month-by-month amortization tracking
+
+2. **creditCardPayoff.ts** - Credit card payoff scenarios
+   - Types: `CreditCardInputs`, `PayoffScenario`, `MonthlySnapshot`
+   - Function: `calculateCreditCardPayoff()`
+   - Handles minimum payment-only vs accelerated payoff
+
+3. **debtToIncomeRatio.ts** - DTI calculation
+   - Types: `DebtItem`, `DTIResult`
+   - Function: `calculateDTI()`
+   - Calculates front-end and back-end DTI ratios
+
+4. **loanCalculator.ts** - General loan amortization
+   - Types: `LoanInputs`, `AmortizationSchedule`, `LoanSummary`
+   - Functions: `calculateMonthlyPayment()`, `calculateLoanAmortization()`, `calculateRemainingBalance()`
+
+5. **mortgageCalculator.ts** - Mortgage-specific calculations
+   - Types: `MortgageInputs`, `MortgageAmortizationEntry`, `MortgageSummary`
+   - Functions: `calculateMortgage()`, `calculateAffordableHome()`
+   - Includes PMI, property taxes, insurance
+
+**Retirement Calculators Implemented:**
+
+1. **retirement.ts** - Basic retirement projections
+   - Compound interest with monthly contributions
+   - Inflation adjustment
+   - Year-by-year projections
+
+2. **withdrawalStrategy.ts** - Retirement withdrawal strategies
+   - Fixed dollar withdrawals (4% rule)
+   - Dynamic percentage withdrawals
+   - Success probability analysis
+
+3. **socialSecurity.ts** - Social Security benefit calculations
+   - Claiming age optimization (62-70)
+   - Full Retirement Age (FRA) adjustments
+   - Delayed retirement credits
+   - Break-even analysis
+
+4. **fourZeroOneKVsIRA.ts** - 401(k) vs IRA comparison
+   - Tax-deferred vs Roth comparisons
+   - Employer match considerations
+   - Contribution limit analysis
+
+### CommonJS to ESM Migration
+
+**Initial Implementation:** CommonJS modules
+
+**Problem:** deanfi-website uses Astro/Vite which requires ESM
+
+**Migration Steps:**
+
+1. **Added to package.json:**
+   ```json
+   {
+     "type": "module"
+   }
+   ```
+
+2. **Updated tsconfig.json:**
+   ```jsonc
+   {
+     "compilerOptions": {
+       "module": "ES2020",  // Changed from "commonjs"
+       "target": "ES2020"
+     }
+   }
+   ```
+
+3. **Fixed Duplicate Exports:**
+   - Issue: Both `debtPayoff.ts` and `creditCardPayoff.ts` exported `MonthlySnapshot`
+   - Solution: Renamed to `DebtPayoffMonthlySnapshot` and `CreditCardMonthlySnapshot`
+
+**Result:** Successfully converted to ESM, compatible with modern bundlers
+
+### Local Development Setup
+
+**npm link workflow for local testing:**
+
+```bash
+# In deanfi-calculators
+npm link
+
+# In deanfi-website
+npm link @deanfinancials/calculators
+```
+
+This created a symlink for development:
+```
+deanfi-website/node_modules/@deanfinancials/calculators
+  → /home/wes/deanfinancialsrepos/deanfi-calculators
+```
+
+**Benefits:**
+- Real-time changes reflected in website
+- No need to republish for testing
+- Easy debugging with source maps
+
+**Limitations:**
+- Only works locally
+- Must unlink before publishing to npm
+- Can cause confusion if left linked
+
+---
+
+## Development Philosophy
+
+### Transparency First
+
+Every calculator in this package is:
+
+1. **Open Source** - Full source code available on GitHub
+2. **Well-Documented** - Comments explain formulas and edge cases
+3. **Type-Safe** - Complete TypeScript definitions
+4. **Independently Verifiable** - Users can verify calculations
+
+### No Black Boxes
+
+Financial calculations should never be:
+- Obfuscated or minified (source is readable)
+- Hidden in closed-source libraries
+- Proprietary or secret
+
+Users have a right to know how their financial projections are calculated.
+
+### Accuracy Over Everything
+
+- Use precise decimal math
+- Handle edge cases explicitly
+- Document rounding behavior
+- Test against known examples
+- Never sacrifice accuracy for performance
+
+### Calculation Methodology
+
+All calculators follow established financial principles:
+
+- **Debt Payoff:** Standard avalanche/snowball methodologies
+- **Compound Interest:** Standard financial formulas (FV, PV, PMT)
+- **Amortization:** Standard loan amortization formula
+- **Social Security:** Based on SSA published rules
+- **Retirement Projections:** Monte Carlo simulations and deterministic models
+
+---
+
+## Future Roadmap
+
+### Planned Features
+
+**v1.1.0 - Testing Infrastructure**
+- [ ] Vitest setup
+- [ ] Unit tests for all calculators
+- [ ] Integration tests
+- [ ] Regression test suite
+- [ ] CI/CD with GitHub Actions
+
+**v1.2.0 - Additional Calculators**
+- [ ] Investment return calculators
+- [ ] Tax estimation calculators
+- [ ] Budget planning tools
+- [ ] College savings (529) calculators
+- [ ] Life insurance needs calculator
+
+**v1.3.0 - Enhanced Features**
+- [ ] Inflation adjustment options
+- [ ] Multiple interest rate scenarios
+- [ ] Monte Carlo simulations
+- [ ] Historical data backtesting
+
+**v2.0.0 - Breaking Changes (TBD)**
+- [ ] Potential API redesign based on usage feedback
+- [ ] Performance optimizations
+- [ ] WebAssembly for complex calculations
+
+### Documentation Improvements
+
+- [ ] Auto-generated API documentation (TypeDoc)
+- [ ] Interactive examples website
+- [ ] Formula explanation pages
+- [ ] Video tutorials
+- [ ] Comparison with other calculators
+
+---
+
+## Collaboration Guidelines
+
+### Contributing Calculators
+
+When adding new calculators:
+
+1. **Research** - Verify formula against authoritative sources
+2. **Document** - Include formula reference and methodology
+3. **Test** - Create test cases with known examples
+4. **Type Safety** - Full TypeScript definitions
+5. **Pure Functions** - No side effects
+6. **Edge Cases** - Handle all edge cases explicitly
+
+### Code Review Checklist
+
+- [ ] All functions have JSDoc comments
+- [ ] TypeScript types are complete
+- [ ] No runtime dependencies added
+- [ ] Formulas match documented methodology
+- [ ] Edge cases are handled
+- [ ] Examples are provided
+- [ ] Tests are included
+- [ ] README is updated
+- [ ] CHANGELOG is updated
+
+---
+
+## Support and Contact
+
+**Issues:** https://github.com/GibsonNeo/deanfi-calculators/issues  
+**Discussions:** https://github.com/GibsonNeo/deanfi-calculators/discussions  
+**Email:** support@deanfinancials.com  
+**Website:** https://deanfinancials.com
+
+---
+
+## License
+
+MIT License - See [LICENSE](./LICENSE) file
+
+---
+
+**Document Maintained By:** DeanFinancials Development Team  
+**Last Updated:** November 21, 2025  
+**Document Version:** 1.0.0
