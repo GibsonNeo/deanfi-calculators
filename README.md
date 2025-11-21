@@ -316,14 +316,30 @@ M = P × [r(1 + r)^n] / [(1 + r)^n - 1]
 
 ## Development
 
-### Building
+### Setup
 
 ```bash
+# Clone repository
+git clone https://github.com/GibsonNeo/deanfi-calculators.git
+cd deanfi-calculators
+
+# Install dependencies
 npm install
+
+# Build package
 npm run build
 ```
 
-Compiles TypeScript to JavaScript in `dist/` directory.
+### Building
+
+```bash
+npm run build
+```
+
+Compiles TypeScript to JavaScript in `dist/` directory with:
+- ES2020 modules
+- Type definitions (.d.ts)
+- Source maps
 
 ### Testing
 
@@ -331,10 +347,101 @@ Compiles TypeScript to JavaScript in `dist/` directory.
 npm test
 ```
 
-### Type Checking
+*(Tests are planned but not yet implemented)*
+
+### Local Development with Website
+
+To test changes locally before publishing to npm:
 
 ```bash
-npm run type-check
+# In deanfi-calculators directory
+npm run build
+npm link
+
+# In deanfi-website directory
+npm link @deanfinancials/calculators
+
+# Make changes, rebuild, test in website
+npm run build  # In calculators repo
+# Changes reflected immediately in website
+
+# When done testing, unlink
+npm unlink @deanfinancials/calculators  # In website
+npm install @deanfinancials/calculators  # Install published version
+```
+
+### Publishing Updates
+
+**Prerequisites:**
+- npm account with access to @deanfinancials organization
+- Authenticated with `npm adduser --auth-type=legacy` (recommended for WSL)
+
+**Steps:**
+
+```bash
+# 1. Make changes to source files
+# 2. Build and verify
+npm run build
+
+# 3. Update version (choose one)
+npm version patch   # 1.0.0 → 1.0.1 (bug fixes)
+npm version minor   # 1.0.0 → 1.1.0 (new features)
+npm version major   # 1.0.0 → 2.0.0 (breaking changes)
+
+# 4. Dry run (optional but recommended)
+npm publish --dry-run
+
+# 5. Publish to npm
+npm publish --access public
+
+# 6. Verify publication
+# Visit https://www.npmjs.com/package/@deanfinancials/calculators
+
+# 7. Update consumer projects (CRITICAL - DO NOT SKIP)
+cd /path/to/deanfi-website
+
+# Update package.json to new version
+# Edit: "@deanfinancials/calculators": "^1.0.1"
+# Or use npm:
+npm install @deanfinancials/calculators@latest
+
+# Verify update
+npm list @deanfinancials/calculators
+
+# Test the website
+npm run dev
+# Visit calculator pages and test
+
+# Commit the updates
+git add package.json package-lock.json
+git commit -m "chore: update @deanfinancials/calculators to v1.0.1"
+git push
+```
+
+**Important Notes:**
+- The `prepublishOnly` script automatically runs `npm run build`
+- Always verify `dist/index.js` has `.js` extensions in imports before publishing
+- **CRITICAL:** After EVERY publish, update ALL consumer projects (deanfi-website, etc.)
+- Update both `package.json` AND `package-lock.json` in consumers
+- Test thoroughly before deploying consumer projects
+- Skipping consumer updates will cause production to use stale versions
+
+### Version Management
+
+This package follows [Semantic Versioning](https://semver.org/):
+
+- **PATCH** (1.0.x): Bug fixes, documentation updates
+- **MINOR** (1.x.0): New calculators, new features (backwards compatible)
+- **MAJOR** (x.0.0): Breaking changes to existing calculator APIs
+
+See [CHANGELOG_AND_IMPLEMENTATION_LOG.md](./CHANGELOG_AND_IMPLEMENTATION_LOG.md) for version history.
+
+### Type Checking
+
+TypeScript strict mode is enabled. Verify types compile:
+
+```bash
+npm run build
 ```
 
 ## Contributing
@@ -349,8 +456,15 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 ## Related Repositories
 
+- **[deanfi-website](https://github.com/DeanFinancials/deanfi-website)** - DeanFinancials.com Astro website (primary consumer)
 - **[deanfi-collectors](https://github.com/WestMichiganRubyTraining/deanfi-collectors)** - Market data collection scripts
 - **[deanfi-data](https://github.com/WestMichiganRubyTraining/deanfi-data)** - Historical market data cache
+
+## Documentation
+
+- **[DEVELOPER_REQUIREMENTS.md](./DEVELOPER_REQUIREMENTS.md)** - Development setup, publishing workflow, best practices
+- **[CHANGELOG_AND_IMPLEMENTATION_LOG.md](./CHANGELOG_AND_IMPLEMENTATION_LOG.md)** - Complete version history and technical details
+- **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Contribution guidelines
 
 ## Disclaimer
 

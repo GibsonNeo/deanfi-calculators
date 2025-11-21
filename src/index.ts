@@ -7,14 +7,47 @@
  */
 
 // Retirement Calculators
-export * from './retirement/retirement';
-export * from './retirement/withdrawalStrategy';
-export * from './retirement/socialSecurity';
-export * from './retirement/fourZeroOneKVsIRA';
+export * from './retirement/retirement.js';
+export * from './retirement/withdrawalStrategy.js';
+export * from './retirement/socialSecurity.js';
+export * from './retirement/fourZeroOneKVsIRA.js';
 
 // Debt Calculators
-export * from './debt/debtPayoff';
-export * from './debt/debtToIncomeRatio';
-export * from './debt/creditCardPayoff';
-export * from './debt/loanCalculator';
-export * from './debt/mortgageCalculator';
+export {
+  type Debt,
+  type PayoffResult,
+  type MonthlySnapshot as DebtPayoffMonthlySnapshot,
+  type DebtSnapshot,
+  calculateDebtPayoff,
+  comparePayoffStrategies
+} from './debt/debtPayoff.js';
+
+export {
+  type DebtItem,
+  type DTIResult,
+  calculateDTI
+} from './debt/debtToIncomeRatio.js';
+
+export {
+  type CreditCardInputs,
+  type PayoffScenario,
+  type MonthlySnapshot as CreditCardMonthlySnapshot,
+  calculateCreditCardPayoff
+} from './debt/creditCardPayoff.js';
+
+export {
+  type LoanInputs,
+  type AmortizationSchedule,
+  type LoanSummary,
+  calculateMonthlyPayment,
+  calculateLoanAmortization,
+  calculateRemainingBalance
+} from './debt/loanCalculator.js';
+
+export {
+  type MortgageInputs,
+  type MortgageAmortizationEntry,
+  type MortgageSummary,
+  calculateMortgage,
+  calculateAffordableHome
+} from './debt/mortgageCalculator.js';

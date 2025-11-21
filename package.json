@@ -1,7 +1,8 @@
 {
   "name": "@deanfinancials/calculators",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Transparent financial calculator library used by DeanFinancials.com",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -25,7 +26,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/GibsonNeo/deanfi-calculators.git"
+    "url": "git+https://github.com/GibsonNeo/deanfi-calculators.git"
   },
   "homepage": "https://github.com/GibsonNeo/deanfi-calculators#readme",
   "devDependencies": {
